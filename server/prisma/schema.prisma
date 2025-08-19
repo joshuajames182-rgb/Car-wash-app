@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  role            UserRole
+  email           String    @unique
+  phone           String?   @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  ratingsReceived Review[]
+  bookings        Booking[] @relation("CustomerBookings")
+  washer          Washer?
+}
+
+model Washer {
+  id                    String    @id @default(uuid())
+  user                  User      @relation(fields: [userId], references: [id])
+  userId                String    @unique
+  isVerified            Boolean   @default(false)
+  isOnline              Boolean   @default(false)
+  averageRating         Float     @default(0)
+  totalRatings          Int       @default(0)
+  jobsCompleted         Int       @default(0)
+  vehiclesSupportedJson Json?
+  bookings              Booking[] @relation("WasherBookings")
+  payouts               Payout[]
+  documents             WasherDocument[]
+}
+
+model WasherDocument {
+  id        String   @id @default(uuid())
+  washer    Washer   @relation(fields: [washerId], references: [id])
+  washerId  String
+  type      String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  make      String
+  model     String
+  size      VehicleSize
+}
+
+model ServiceType {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  basePrice   Int
+  bookings    Booking[]
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  status        BookingStatus @default(PENDING)
+  customer      User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  customerId    String
+  washer        Washer?       @relation("WasherBookings", fields: [washerId], references: [id])
+  washerId      String?
+  serviceType   ServiceType   @relation(fields: [serviceTypeId], references: [id])
+  serviceTypeId String
+  vehicleMake   String
+  vehicleModel  String
+  vehicleSize   VehicleSize
+  scheduledFor  DateTime
+  locationLat   Float
+  locationLng   Float
+  etaMinutes    Int?
+  priceCents    Int
+  payment       Payment?
+  payout        Payout?
+  reviews       Review[]
+}
+
+model Payment {
+  id               String          @id @default(uuid())
+  booking          Booking         @relation(fields: [bookingId], references: [id])
+  bookingId        String          @unique
+  provider         PaymentProvider
+  providerChargeId String
+  status           PaymentStatus
+  amountCents      Int
+  commissionCents  Int
+  createdAt        DateTime        @default(now())
+}
+
+model Payout {
+  id          String   @id @default(uuid())
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  bookingId   String   @unique
+  washer      Washer   @relation(fields: [washerId], references: [id])
+  washerId    String
+  amountCents Int
+  status      PayoutStatus
+  createdAt   DateTime @default(now())
+  paidAt      DateTime?
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  rating     Int
+  comment    String?
+  customer   User     @relation(fields: [customerId], references: [id])
+  customerId String
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  bookingId  String
+}
+
+enum UserRole {
+  CUSTOMER
+  WASHER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum VehicleSize {
+  SMALL
+  MEDIUM
+  LARGE
+  SUV
+}
+
+enum PaymentProvider {
+  PAYPAL
+  STRIPE
+}
+
+enum PaymentStatus {
+  AUTHORIZED
+  CAPTURED
+  REFUNDED
+  FAILED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
